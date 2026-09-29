@@ -1,0 +1,24 @@
+{
+    "model_type": "MARNetOnly",
+    "model_name": "ablation_MARNetOnly_b24_lr01",
+    "description": "Ablation study for MARNetOnly with batch size 24 and learning rate 0.1",
+    "dataset_dir": "$SHRDIR/AIDE_dataset/AIDE_dataset",
+    "split_dir": "$SHRDIR/AIDE_dataset/AIDE_dataset",
+    "project_dir": "$HOME/BaselineReproduction",
+
+    "resources":{
+        "ntasks": 1,
+        "cpus_per_task": 4,
+        "mem": "32G",
+        "gres": "gpu:1",
+        "time": "48:00:00"
+    },
+
+    "training_config": {
+        "batch_size": 24,
+        "num_epochs": 150,
+        "learning_rate": 0.1,
+        "lr_drop_factor": 0.5,
+        "lr_drop_patience": 10
+    }
+}
