@@ -5,7 +5,8 @@ import sys
 from pathlib import Path
 import shutil
 
-def build_experiment_env(path: str) -> None:
+
+def parse_config(path: str) -> tuple[dict, dict, dict, Path, Path, Path, Path]:
     config = None
     resources = None
     training_config = None
@@ -16,18 +17,16 @@ def build_experiment_env(path: str) -> None:
         training_config = config["training_config"]
     
     experiment_dir = Path(config["model_name"])
-    
-    if experiment_dir.exists():
-        raise FileExistsError(f"Experiment '{experiment_dir.name}' already exists.")
-    
-    experiment_dir.mkdir(parents=True, exist_ok=True)
-    
     checkpoints_dir_path = experiment_dir / "checkpoints"
     logs_dir_path = experiment_dir / "logs"
-        
-    checkpoints_dir_path.mkdir(parents=True, exist_ok=True)
-    logs_dir_path.mkdir(parents=True, exist_ok=True)
+    config_path = experiment_dir / "config.json"
+    
+    return config, resources, training_config, experiment_dir, checkpoints_dir_path, logs_dir_path, config_path
 
+
+def write_slurm_script(path: str) -> None:
+    config, resources, training_config, experiment_dir, checkpoints_dir_path, logs_dir_path, config_path = parse_config(path)
+    
     script_template = \
     f"""#!/bin/bash
 #SBATCH --account={os.getlogin()} # Account
@@ -102,19 +101,36 @@ python ./main.py \\
 echo "Finished: $(date)"
 """
 
-    with open(experiment_dir / "slurm_script.slurm", "w") as slurm_file:
+    with open(experiment_dir / "script.slurm", "w") as slurm_file:
         slurm_file.write(script_template)
+
+
+def build_experiment_env(path: str) -> None:
+    _, _, _,experiment_dir, checkpoints_dir_path, logs_dir_path, config_path = parse_config(path)
     
-    shutil.copy(path, experiment_dir / "config.json")
+    if experiment_dir.exists():
+        raise FileExistsError(f"Experiment '{experiment_dir.name}' already exists.")
+    
+    experiment_dir.mkdir(parents=True, exist_ok=True)
+    checkpoints_dir_path.mkdir(parents=True, exist_ok=True)
+    logs_dir_path.mkdir(parents=True, exist_ok=True)
+    
+    write_slurm_script(path)
+    
+    shutil.copy(path, config_path)
         
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build SLURM script from JSON configuration.")
     parser.add_argument("config_path", type=str, help="Path to the JSON configuration file.")
+    parser.add_argument("--update_script", action="store_true", help="Update the SLURM script if it already exists.")
     args = parser.parse_args()
     
     if not os.path.isfile(args.config_path):
         print(f"Error: Configuration file '{args.config_path}' does not exist.")
         sys.exit(1)
-    
-    build_experiment_env(args.config_path)
+     
+    if args.update_script:
+        write_slurm_script(args.config_path)
+    else:
+        build_experiment_env(args.config_path)
